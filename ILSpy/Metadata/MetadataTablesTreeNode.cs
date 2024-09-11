@@ -23,6 +23,7 @@ using System.Reflection.Metadata.Ecma335;
 using ICSharpCode.Decompiler;
 using ICSharpCode.Decompiler.Metadata;
 using ICSharpCode.ILSpy.TreeNodes;
+using ICSharpCode.ILSpy.Util;
 using ICSharpCode.ILSpy.ViewModels;
 
 namespace ICSharpCode.ILSpy.Metadata
@@ -50,7 +51,7 @@ namespace ICSharpCode.ILSpy.Metadata
 			}
 		}
 
-		internal static bool ShowTable(TableIndex table, MetadataReader metadata) => !MainWindow.Instance.CurrentDisplaySettings.HideEmptyMetadataTables || metadata.GetTableRowCount(table) > 0;
+		internal static bool ShowTable(TableIndex table, MetadataReader metadata) => !SettingsService.Instance.DisplaySettings.HideEmptyMetadataTables || metadata.GetTableRowCount(table) > 0;
 
 		internal static MetadataTableTreeNode CreateTableTreeNode(TableIndex table, MetadataFile metadataFile)
 		{
@@ -140,8 +141,14 @@ namespace ICSharpCode.ILSpy.Metadata
 					return new StateMachineMethodTableTreeNode(metadataFile);
 				case TableIndex.CustomDebugInformation:
 					return new CustomDebugInformationTableTreeNode(metadataFile);
+				case TableIndex.FieldPtr:
+				case TableIndex.EventPtr:
+				case TableIndex.MethodPtr:
+				case TableIndex.ParamPtr:
+				case TableIndex.PropertyPtr:
+					return new PtrTableTreeNode(table, metadataFile);
 				default:
-					throw new ArgumentException($"Unsupported table index: {table}");
+					return new UnsupportedMetadataTableTreeNode(table, metadataFile);
 			}
 		}
 

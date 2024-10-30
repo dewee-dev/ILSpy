@@ -1,6 +1,6 @@
 ﻿using System;
 using System.ComponentModel;
-using System.ComponentModel.Composition;
+using System.Composition;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -10,12 +10,12 @@ using ICSharpCode.Decompiler.IL.Transforms;
 using ICSharpCode.ILSpy.Docking;
 using ICSharpCode.ILSpy.ViewModels;
 
-using TomsToolbox.Wpf.Composition.Mef;
+using TomsToolbox.Wpf.Composition.AttributedModel;
 
 namespace ICSharpCode.ILSpy
 {
 	[DataTemplate(typeof(DebugStepsPaneModel))]
-	[PartCreationPolicy(CreationPolicy.NonShared)]
+	[NonShared]
 	public partial class DebugSteps : UserControl
 	{
 		static readonly ILAstWritingOptions writingOptions = new ILAstWritingOptions {
@@ -38,7 +38,7 @@ namespace ICSharpCode.ILSpy
 
 			writingOptions.PropertyChanged += WritingOptions_PropertyChanged;
 
-			if (SettingsService.Instance.SessionSettings.LanguageSettings.Language is ILAstLanguage l)
+			if (LanguageService.Instance.Language is ILAstLanguage l)
 			{
 				l.StepperUpdated += ILAstStepperUpdated;
 				language = l;
@@ -66,13 +66,13 @@ namespace ICSharpCode.ILSpy
 			if (sender is not LanguageSettings)
 				return;
 
-			if (e.PropertyName == nameof(LanguageSettings.Language))
+			if (e.PropertyName == nameof(LanguageSettings.LanguageId))
 			{
 				if (language != null)
 				{
 					language.StepperUpdated -= ILAstStepperUpdated;
 				}
-				if (SettingsService.Instance.SessionSettings.LanguageSettings.Language is ILAstLanguage l)
+				if (LanguageService.Instance.Language is ILAstLanguage l)
 				{
 					l.StepperUpdated += ILAstStepperUpdated;
 					language = l;

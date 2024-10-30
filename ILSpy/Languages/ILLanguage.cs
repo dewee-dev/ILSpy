@@ -18,7 +18,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.ComponentModel.Composition;
+using System.Composition;
 using System.Linq;
 using System.Reflection.Metadata;
 
@@ -43,7 +43,7 @@ namespace ICSharpCode.ILSpy
 	/// flat IL (detectControlStructure=false) and structured IL (detectControlStructure=true).
 	/// </remarks>
 	[Export(typeof(Language))]
-	[PartCreationPolicy(CreationPolicy.Shared)]
+	[Shared]
 	public class ILLanguage : Language
 	{
 		protected bool detectControlStructure = true;
@@ -201,7 +201,7 @@ namespace ICSharpCode.ILSpy
 			var settingsService = SettingsService.Instance;
 			var dockWorkspace = DockWorkspace.Instance;
 
-			var disasm = CreateDisassembler(output, settingsService.CreateDecompilationOptions(dockWorkspace.ActiveTabPage));
+			var disasm = CreateDisassembler(output, LanguageService.Instance.CreateDecompilationOptions(dockWorkspace.ActiveTabPage));
 			MetadataFile module = entity.ParentModule?.MetadataFile;
 			if (module == null)
 			{

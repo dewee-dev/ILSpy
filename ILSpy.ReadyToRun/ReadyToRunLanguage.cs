@@ -20,7 +20,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.ComponentModel.Composition;
+using System.Composition;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -96,7 +96,7 @@ namespace ICSharpCode.ILSpy.ReadyToRun
 #endif
 
 	[Export(typeof(Language))]
-	[PartCreationPolicy(CreationPolicy.Shared)]
+	[Shared]
 	internal class ReadyToRunLanguage : Language
 	{
 		private static readonly ConditionalWeakTable<MetadataFile, ReadyToRunReaderCacheEntry> readyToRunReaders = new ConditionalWeakTable<MetadataFile, ReadyToRunReaderCacheEntry>();
@@ -218,7 +218,7 @@ namespace ICSharpCode.ILSpy.ReadyToRun
 
 		public override RichText GetRichTextTooltip(IEntity entity)
 		{
-			return Languages.ILLanguage.GetRichTextTooltip(entity);
+			return LanguageService.Instance.ILLanguage.GetRichTextTooltip(entity);
 		}
 
 		private ReadyToRunReaderCacheEntry GetReader(LoadedAssembly assembly, MetadataFile file)

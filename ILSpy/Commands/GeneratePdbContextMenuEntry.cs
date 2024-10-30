@@ -17,7 +17,7 @@
 // DEALINGS IN THE SOFTWARE.
 
 using System;
-using System.ComponentModel.Composition;
+using System.Composition;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -40,7 +40,7 @@ using Microsoft.Win32;
 namespace ICSharpCode.ILSpy
 {
 	[ExportContextMenuEntry(Header = nameof(Resources.GeneratePortable))]
-	[PartCreationPolicy(CreationPolicy.Shared)]
+	[Shared]
 	class GeneratePdbContextMenuEntry : IContextMenuEntry
 	{
 		public void Execute(TextViewContext context)
@@ -75,7 +75,7 @@ namespace ICSharpCode.ILSpy
 			if (dlg.ShowDialog() != true)
 				return;
 			DockWorkspace dockWorkspace = DockWorkspace.Instance;
-			DecompilationOptions options = SettingsService.Instance.CreateDecompilationOptions(dockWorkspace.ActiveTabPage);
+			DecompilationOptions options = LanguageService.Instance.CreateDecompilationOptions(dockWorkspace.ActiveTabPage);
 			string fileName = dlg.FileName;
 			dockWorkspace.RunWithCancellation(ct => Task<AvalonEditTextOutput>.Factory.StartNew(() => {
 				AvalonEditTextOutput output = new AvalonEditTextOutput();
@@ -107,7 +107,7 @@ namespace ICSharpCode.ILSpy
 	}
 
 	[ExportMainMenuCommand(ParentMenuID = nameof(Resources._File), Header = nameof(Resources.GeneratePortable), MenuCategory = nameof(Resources.Save))]
-	[PartCreationPolicy(CreationPolicy.Shared)]
+	[Shared]
 	class GeneratePdbMainMenuEntry : SimpleCommand
 	{
 		public override bool CanExecute(object parameter)

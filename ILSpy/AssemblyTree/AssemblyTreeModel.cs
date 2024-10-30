@@ -20,19 +20,18 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.ComponentModel;
-using System.ComponentModel.Composition;
+using System.Composition;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Reflection.Metadata;
 using System.Reflection.Metadata.Ecma335;
-using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Navigation;
 using System.Windows.Threading;
 
-using ICSharpCode.Decompiler;
 using ICSharpCode.Decompiler.Documentation;
 using ICSharpCode.Decompiler.Metadata;
 using ICSharpCode.Decompiler.TypeSystem;
@@ -56,7 +55,7 @@ using TomsToolbox.Wpf;
 namespace ICSharpCode.ILSpy.AssemblyTree
 {
 	[ExportToolPane]
-	[PartCreationPolicy(CreationPolicy.Shared)]
+	[Shared]
 	[Export]
 	public class AssemblyTreeModel : ToolPaneModel
 	{
@@ -108,7 +107,7 @@ namespace ICSharpCode.ILSpy.AssemblyTree
 			{
 				switch (e.PropertyName)
 				{
-					case nameof(LanguageSettings.Language) or nameof(LanguageSettings.LanguageVersion):
+					case nameof(LanguageSettings.LanguageId) or nameof(LanguageSettings.LanguageVersionId):
 						RefreshDecompiledView();
 						break;
 					default:
@@ -152,7 +151,7 @@ namespace ICSharpCode.ILSpy.AssemblyTree
 		{
 			LoadAssemblies(args.AssembliesToLoad, commandLineLoadedAssemblies, focusNode: false);
 			if (args.Language != null)
-				SettingsService.Instance.SessionSettings.LanguageSettings.Language = Languages.GetLanguage(args.Language);
+				LanguageService.Instance.Language = LanguageService.Instance.GetLanguage(args.Language);
 			return true;
 		}
 
@@ -160,13 +159,15 @@ namespace ICSharpCode.ILSpy.AssemblyTree
 		/// Called on startup or when passed arguments via WndProc from a second instance.
 		/// In the format case, spySettings is non-null; in the latter it is null.
 		/// </summary>
-		private void HandleCommandLineArgumentsAfterShowList(CommandLineArguments args, ISettingsProvider? spySettings = null)
+		private async Task HandleCommandLineArgumentsAfterShowList(CommandLineArguments args, ISettingsProvider? spySettings = null)
 		{
 			var sessionSettings = SettingsService.Instance.SessionSettings;
 
 			var relevantAssemblies = commandLineLoadedAssemblies.ToList();
 			commandLineLoadedAssemblies.Clear(); // clear references once we don't need them anymore
-			NavigateOnLaunch(args.NavigateTo, sessionSettings.ActiveTreeViewPath, spySettings, relevantAssemblies);
+
+			await NavigateOnLaunch(args.NavigateTo, sessionSettings.ActiveTreeViewPath, spySettings, relevantAssemblies);
+
 			if (args.Search != null)
 			{
 				var searchPane = App.ExportProvider.GetExportedValue<SearchPaneModel>();
@@ -180,7 +181,7 @@ namespace ICSharpCode.ILSpy.AssemblyTree
 		{
 			var cmdArgs = CommandLineArguments.Create(args);
 
-			await Dispatcher.InvokeAsync(() => {
+			await Dispatcher.InvokeAsync(async () => {
 
 				if (!HandleCommandLineArguments(cmdArgs))
 					return;
@@ -192,11 +193,11 @@ namespace ICSharpCode.ILSpy.AssemblyTree
 					window.WindowState = WindowState.Normal;
 				}
 
-				HandleCommandLineArgumentsAfterShowList(cmdArgs);
+				await HandleCommandLineArgumentsAfterShowList(cmdArgs);
 			});
 		}
 
-		private async void NavigateOnLaunch(string? navigateTo, string[]? activeTreeViewPath, ISettingsProvider? spySettings, List<LoadedAssembly> relevantAssemblies)
+		private async Task NavigateOnLaunch(string? navigateTo, string[]? activeTreeViewPath, ISettingsProvider? spySettings, List<LoadedAssembly> relevantAssemblies)
 		{
 			var initialSelection = SelectedItem;
 			if (navigateTo != null)
@@ -386,26 +387,31 @@ namespace ICSharpCode.ILSpy.AssemblyTree
 			Dispatcher.BeginInvoke(DispatcherPriority.Loaded, OpenAssemblies);
 		}
 
-		private void OpenAssemblies()
+		private async Task OpenAssemblies()
 		{
-			HandleCommandLineArgumentsAfterShowList(App.CommandLineArguments, SettingsService.Instance.SpySettings);
+			await HandleCommandLineArgumentsAfterShowList(App.CommandLineArguments, SettingsService.Instance.SpySettings);
 
-			AvalonEditTextOutput output = new();
-			if (FormatExceptions(App.StartupExceptions.ToArray(), output))
+			if (FormatExceptions(App.StartupExceptions.ToArray(), out var output))
 			{
+				output.Title = "Startup errors";
+
+				DockWorkspace.Instance.AddTabPage();
 				DockWorkspace.Instance.ShowText(output);
 			}
 		}
 
-		private static bool FormatExceptions(App.ExceptionData[] exceptions, ITextOutput output)
+		private static bool FormatExceptions(App.ExceptionData[] exceptions, [NotNullWhen(true)] out AvalonEditTextOutput? output)
 		{
-			var stringBuilder = new StringBuilder();
-			var result = exceptions.FormatExceptions(stringBuilder);
-			if (result)
-			{
-				output.Write(stringBuilder.ToString());
-			}
-			return result;
+			output = null;
+
+			var result = exceptions.FormatExceptions();
+			if (result.IsNullOrEmpty())
+				return false;
+
+			output = new();
+			output.Write(result);
+			return true;
+
 		}
 
 		private void ShowAssemblyList(string name)
@@ -787,7 +793,7 @@ namespace ICSharpCode.ILSpy.AssemblyTree
 				return;
 			}
 
-			var options = SettingsService.Instance.CreateDecompilationOptions(activeTabPage);
+			var options = LanguageService.Instance.CreateDecompilationOptions(activeTabPage);
 			options.TextViewState = newState;
 			activeTabPage.ShowTextViewAsync(textView => textView.DecompileAsync(this.CurrentLanguage, this.SelectedNodes, options));
 		}
@@ -797,9 +803,9 @@ namespace ICSharpCode.ILSpy.AssemblyTree
 			DecompileSelectedNodes(DockWorkspace.Instance.ActiveTabPage.GetState() as DecompilerTextViewState);
 		}
 
-		public Language CurrentLanguage => SettingsService.Instance.SessionSettings.LanguageSettings.Language;
+		public Language CurrentLanguage => LanguageService.Instance.Language;
 
-		public LanguageVersion CurrentLanguageVersion => SettingsService.Instance.SessionSettings.LanguageSettings.LanguageVersion;
+		public LanguageVersion? CurrentLanguageVersion => LanguageService.Instance.LanguageVersion;
 
 		public IEnumerable<ILSpyTreeNode> SelectedNodes {
 			get {

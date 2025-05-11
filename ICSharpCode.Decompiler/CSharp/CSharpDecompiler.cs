@@ -149,6 +149,7 @@ namespace ICSharpCode.Decompiler.CSharp
 							new IndexRangeTransform(),
 							new DeconstructionTransform(),
 							new NamedArgumentTransform(),
+							new RemoveUnconstrainedGenericReferenceTypeCheck(),
 							new UserDefinedLogicTransform(),
 							new InterpolatedStringTransform()
 						),
@@ -1167,8 +1168,7 @@ namespace ICSharpCode.Decompiler.CSharp
 				methodDecl.TypeParameters.AddRange(memberDecl.GetChildrenByRole(Roles.TypeParameter)
 												   .Select(n => (TypeParameterDeclaration)n.Clone()));
 				methodDecl.Parameters.AddRange(memberDecl.GetChildrenByRole(Roles.Parameter).Select(n => n.Clone()));
-				methodDecl.Constraints.AddRange(memberDecl.GetChildrenByRole(Roles.Constraint)
-												.Select(n => (Constraint)n.Clone()));
+				// Constraints are not copied because explicit interface implementations cannot have constraints. CS0460
 
 				methodDecl.Body = new BlockStatement();
 				methodDecl.Body.AddChild(new Comment(
@@ -1718,6 +1718,7 @@ namespace ICSharpCode.Decompiler.CSharp
 			{
 				var ilReader = new ILReader(typeSystem.MainModule) {
 					UseDebugSymbols = settings.UseDebugSymbols,
+					UseRefLocalsForAccurateOrderOfEvaluation = settings.UseRefLocalsForAccurateOrderOfEvaluation,
 					DebugInfo = DebugInfoProvider
 				};
 				var methodDef = metadata.GetMethodDefinition((MethodDefinitionHandle)method.MetadataToken);

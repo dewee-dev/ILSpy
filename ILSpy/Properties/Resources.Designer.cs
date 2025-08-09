@@ -1018,6 +1018,15 @@ namespace ICSharpCode.ILSpy.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Expand params arguments by removing explicit array creation.
+        /// </summary>
+        public static string DecompilerSettings_ExpandParamsArguments {
+            get {
+                return ResourceManager.GetString("DecompilerSettings.ExpandParamsArguments", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Use file-scoped namespace declarations.
         /// </summary>
         public static string DecompilerSettings_FileScopedNamespaces {
@@ -1829,11 +1838,20 @@ namespace ICSharpCode.ILSpy.Properties {
                 return ResourceManager.GetString("ExpandUsingDeclarationsAfterDecompilation", resourceCulture);
             }
         }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Extract package entry.
-        /// </summary>
-        public static string ExtractPackageEntry {
+
+		/// <summary>
+		///   Looks up a localized string similar to Extract all package entries.
+		/// </summary>
+		public static string ExtractAllPackageEntries {
+			get {
+				return ResourceManager.GetString("ExtractAllPackageEntries", resourceCulture);
+			}
+		}
+
+		/// <summary>
+		///   Looks up a localized string similar to Extract package entry.
+		/// </summary>
+		public static string ExtractPackageEntry {
             get {
                 return ResourceManager.GetString("ExtractPackageEntry", resourceCulture);
             }

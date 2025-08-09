@@ -969,7 +969,7 @@ namespace ICSharpCode.Decompiler.CSharp
 				{
 					firstOptionalArgumentIndex = -2;
 				}
-				if (parameter.IsParams && i + 1 == callArguments.Count && argumentToParameterMap == null)
+				if (expressionBuilder.settings.ExpandParamsArguments && parameter.IsParams && i + 1 == callArguments.Count && argumentToParameterMap == null)
 				{
 					// Parameter is marked params
 					// If the argument is an array creation, inline all elements into the call and add missing default values.
@@ -2051,7 +2051,6 @@ namespace ICSharpCode.Decompiler.CSharp
 
 			if (isExtensionMethodReference)
 			{
-				var resolver = this.resolver.WithCurrentUsingScope(this.expressionBuilder.statementBuilder.decompileRun.UsingScope.Resolve(this.resolver.Compilation));
 				result = resolver.ResolveMemberAccess(target, method.Name, typeArguments, NameLookupMode.InvocationTarget) as MethodGroupResolveResult;
 				if (result == null)
 					return false;

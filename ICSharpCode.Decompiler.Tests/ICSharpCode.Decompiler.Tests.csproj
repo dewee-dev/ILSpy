@@ -8,7 +8,7 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
-    <LangVersion>13</LangVersion>
+    <LangVersion>preview</LangVersion>
     <RuntimeIdentifier Condition="$(IsWindowsX64) == true">win-x64</RuntimeIdentifier>
     <RuntimeIdentifier Condition="$(IsWindowsARM64) == true">win-arm64</RuntimeIdentifier>
 
@@ -20,7 +20,8 @@
 
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
 
-    <NoWarn>1701;1702;1705,67,169,1058,728,1720,649,168,251,660,661,675;1998;162;8632;626;8618;8714;8602;8981</NoWarn>
+    <!-- NU1902/1903 are "Package 'X' has a known security vulnerability". In our tests, we don't care. -->
+    <NoWarn>$(NoWarn);1701;1702;1705,67,169,1058,728,1720,649,168,251,660,661,675;1998;162;8632;626;8618;8714;8602;8981;NU1902;NU1903</NoWarn>
     <DefineConstants>ROSLYN;ROSLYN2;ROSLYN3;ROSLYN4;NET60;CS60;CS70;CS71;CS72;CS73;CS80;CS90;CS100;CS110;CS120;CS130</DefineConstants>
 
     <GenerateAssemblyVersionAttribute>False</GenerateAssemblyVersionAttribute>
@@ -91,6 +92,7 @@
     <None Include="TestCases\Correctness\StackTests.il" />
     <None Include="TestCases\Correctness\StackTypes.il" />
     <None Include="TestCases\Correctness\Uninit.vb" />
+    <None Include="TestCases\Disassembler\Pretty\GenericConstraints.il" />
     <None Include="TestCases\Disassembler\Pretty\InterfaceImplAttributes.il" />
     <None Include="TestCases\Disassembler\Pretty\SortMembers.expected.il" />
     <None Include="TestCases\Disassembler\Pretty\SortMembers.il" />
@@ -100,6 +102,7 @@
     <None Include="TestCases\ILPretty\Issue3442.il" />
     <None Include="TestCases\ILPretty\Issue3466.il" />
     <None Include="testcases\ilpretty\Issue3504.il" />
+    <None Include="testcases\ilpretty\Issue3524.il" />
     <None Include="TestCases\ILPretty\MonoFixed.il" />
     <None Include="TestCases\Correctness\NonGenericConstrainedCallVirt.il" />
     <None Include="TestCases\ILPretty\UnknownTypes.cs" />
@@ -142,6 +145,9 @@
     <Compile Include="TestCases\ILPretty\Issue3421.cs" />
     <Compile Include="TestCases\ILPretty\Issue3442.cs" />
     <Compile Include="TestCases\ILPretty\Issue3466.cs" />
+    <Compile Include="TestCases\ILPretty\Issue3524.cs" />
+    <Compile Include="TestCases\Pretty\ExpandParamsArgumentsDisabled.cs" />
+    <Compile Include="TestCases\Pretty\ExtensionProperties.cs" />
     <None Include="TestCases\ILPretty\Issue3504.cs" />
     <Compile Include="TestCases\ILPretty\MonoFixed.cs" />
     <Compile Include="TestCases\Pretty\Comparisons.cs" />

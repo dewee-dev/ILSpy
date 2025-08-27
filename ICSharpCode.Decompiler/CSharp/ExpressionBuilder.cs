@@ -398,10 +398,12 @@ namespace ICSharpCode.Decompiler.CSharp
 				//  unbox.any T(isinst T(expr)) ==> "expr as T" for nullable value types and class-constrained generic types
 				//  comp(isinst T(expr) != null) ==> "expr is T"
 				//  on block level (StatementBuilder.VisitIsInst) => "expr is T"
-				if (SemanticHelper.IsPure(inst.Argument.Flags))
+				if (SemanticHelper.IsPure(inst.Argument.Flags) || (inst.Argument is Box box && SemanticHelper.IsPure(box.Argument.Flags)))
 				{
 					// We can emulate isinst using
 					//   expr is T ? expr : null
+					// (doubling the boxing side-effect is harmless because the "expr is T" part won't observe object identity,
+					//  and we need to support this because Roslyn pattern matching sometimes generates such code.)
 					return new ConditionalExpression(
 						new IsExpression(arg, ConvertType(inst.Type)).WithILInstruction(inst),
 						arg.Expression.Clone(),
@@ -1107,6 +1109,21 @@ namespace ICSharpCode.Decompiler.CSharp
 				}
 				left = left.ConvertTo(inputType, this);
 				right = right.ConvertTo(inputType, this);
+			}
+			else if (inst.InputType == StackType.O)
+			{
+				// Unsafe.As<object, UIntPtr>(ref left) op Unsafe.As<object, UIntPtr>(ref right)
+				// TTo Unsafe.As<TFrom, TTo>(ref TFrom source)
+				var integerType = compilation.FindType(inst.Sign == Sign.Signed ? KnownTypeCode.IntPtr : KnownTypeCode.UIntPtr);
+				left = WrapInUnsafeAs(left, inst.Left);
+				right = WrapInUnsafeAs(right, inst.Right);
+
+				TranslatedExpression WrapInUnsafeAs(TranslatedExpression expr, ILInstruction inst)
+				{
+					var type = expr.Type;
+					expr = WrapInRef(expr, new ByReferenceType(type));
+					return CallUnsafeIntrinsic("As", [expr], integerType, typeArguments: [type, integerType]);
+				}
 			}
 			return new BinaryOperatorExpression(left.Expression, op, right.Expression)
 				.WithILInstruction(inst)
@@ -3185,16 +3202,16 @@ namespace ICSharpCode.Decompiler.CSharp
 			return input.ConvertTo(targetType, this);
 		}
 
-		internal static bool IsUnboxAnyWithIsInst(UnboxAny unboxAny, IsInst isInst)
+		internal static bool IsUnboxAnyWithIsInst(UnboxAny unboxAny, IType isInstType)
 		{
-			return unboxAny.Type.Equals(isInst.Type)
-				&& (unboxAny.Type.IsKnownType(KnownTypeCode.NullableOfT) || isInst.Type.IsReferenceType == true);
+			return unboxAny.Type.Equals(isInstType)
+				&& (unboxAny.Type.IsKnownType(KnownTypeCode.NullableOfT) || isInstType.IsReferenceType == true);
 		}
 
 		protected internal override TranslatedExpression VisitUnboxAny(UnboxAny inst, TranslationContext context)
 		{
 			TranslatedExpression arg;
-			if (inst.Argument is IsInst isInst && IsUnboxAnyWithIsInst(inst, isInst))
+			if (inst.Argument is IsInst isInst && IsUnboxAnyWithIsInst(inst, isInst.Type))
 			{
 				// unbox.any T(isinst T(expr)) ==> expr as T
 				// This is used for generic types and nullable value types

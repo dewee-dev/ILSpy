@@ -19,7 +19,7 @@ namespace ICSharpCode.ILSpy.Properties {
     // class via a tool like ResGen or Visual Studio.
     // To add or remove a member, edit your .ResX file then rerun ResGen
     // with the /str option, or rebuild your VS project.
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "17.0.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "18.0.0.0")]
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
     public class Resources {
@@ -1054,6 +1054,15 @@ namespace ICSharpCode.ILSpy.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Treat Span&lt;T&gt; and ReadOnlySpan&lt;T&gt; as built-in types.
+        /// </summary>
+        public static string DecompilerSettings_FirstClassSpanTypes {
+            get {
+                return ResourceManager.GetString("DecompilerSettings.FirstClassSpanTypes", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Transform to for, if possible.
         /// </summary>
         public static string DecompilerSettings_ForStatement {
@@ -1407,6 +1416,15 @@ namespace ICSharpCode.ILSpy.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Use struct field initializers and default constructors.
+        /// </summary>
+        public static string DecompilerSettings_StructDefaultConstructorsAndFieldInitializers {
+            get {
+                return ResourceManager.GetString("DecompilerSettings.StructDefaultConstructorsAndFieldInitializers", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Switch expressions.
         /// </summary>
         public static string DecompilerSettings_SwitchExpressions {
@@ -1579,7 +1597,7 @@ namespace ICSharpCode.ILSpy.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Use primary constructor  syntax with records.
+        ///   Looks up a localized string similar to Use primary constructor syntax with records.
         /// </summary>
         public static string DecompilerSettings_UsePrimaryConstructorSyntax {
             get {
@@ -1903,6 +1921,14 @@ namespace ICSharpCode.ILSpy.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Generated PDB: {0}.
+        /// </summary>
+        public static string GeneratedPDBFile {
+            get {
+                return ResourceManager.GetString("GeneratedPDBFile", resourceCulture);
+            }
+        }
+        /// <summary>
         ///   Looks up a localized string similar to Generate portable PDB.
         /// </summary>
         public static string GeneratePortable {
@@ -1912,11 +1938,29 @@ namespace ICSharpCode.ILSpy.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Generating portable PDB....
+        /// </summary>
+        public static string GeneratingPortablePDB {
+            get {
+                return ResourceManager.GetString("GeneratingPortablePDB", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Generation complete in {0} seconds..
         /// </summary>
         public static string GenerationCompleteInSeconds {
             get {
                 return ResourceManager.GetString("GenerationCompleteInSeconds", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Failed to generate PDB for {0}: {1}.
+        /// </summary>
+        public static string GenerationFailedForAssembly {
+            get {
+                return ResourceManager.GetString("GenerationFailedForAssembly", resourceCulture);
             }
         }
         
@@ -2608,6 +2652,15 @@ namespace ICSharpCode.ILSpy.Properties {
         public static string SelectPDB {
             get {
                 return ResourceManager.GetString("SelectPDB", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Select target folder.
+        /// </summary>
+        public static string SelectPDBOutputFolder {
+            get {
+                return ResourceManager.GetString("SelectPDBOutputFolder", resourceCulture);
             }
         }
         

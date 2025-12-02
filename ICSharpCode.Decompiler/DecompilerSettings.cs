@@ -151,6 +151,7 @@ namespace ICSharpCode.Decompiler
 			{
 				fileScopedNamespaces = false;
 				recordStructs = false;
+				structDefaultConstructorsAndFieldInitializers = false;
 			}
 			if (languageVersion < CSharp.LanguageVersion.CSharp11_0)
 			{
@@ -174,12 +175,13 @@ namespace ICSharpCode.Decompiler
 			if (languageVersion < CSharp.LanguageVersion.CSharp14_0)
 			{
 				extensionMembers = false;
+				firstClassSpanTypes = false;
 			}
 		}
 
 		public CSharp.LanguageVersion GetMinimumRequiredVersion()
 		{
-			if (extensionMembers)
+			if (extensionMembers || firstClassSpanTypes)
 				return CSharp.LanguageVersion.CSharp14_0;
 			if (paramsCollections)
 				return CSharp.LanguageVersion.CSharp13_0;
@@ -187,7 +189,7 @@ namespace ICSharpCode.Decompiler
 				return CSharp.LanguageVersion.CSharp12_0;
 			if (scopedRef || requiredMembers || numericIntPtr || utf8StringLiterals || unsignedRightShift || checkedOperators)
 				return CSharp.LanguageVersion.CSharp11_0;
-			if (fileScopedNamespaces || recordStructs)
+			if (fileScopedNamespaces || recordStructs || structDefaultConstructorsAndFieldInitializers)
 				return CSharp.LanguageVersion.CSharp10_0;
 			if (nativeIntegers || initAccessors || functionPointers || forEachWithGetEnumeratorExtension
 				|| recordClasses || withExpressions || usePrimaryConstructorSyntax || covariantReturns
@@ -325,6 +327,24 @@ namespace ICSharpCode.Decompiler
 				if (recordStructs != value)
 				{
 					recordStructs = value;
+					OnPropertyChanged();
+				}
+			}
+		}
+
+		bool structDefaultConstructorsAndFieldInitializers = true;
+
+		/// <summary>
+		/// Use field initializers in structs.
+		/// </summary>
+		[Category("C# 10.0 / VS 2022")]
+		[Description("DecompilerSettings.StructDefaultConstructorsAndFieldInitializers")]
+		public bool StructDefaultConstructorsAndFieldInitializers {
+			get { return structDefaultConstructorsAndFieldInitializers; }
+			set {
+				if (structDefaultConstructorsAndFieldInitializers != value)
+				{
+					structDefaultConstructorsAndFieldInitializers = value;
 					OnPropertyChanged();
 				}
 			}
@@ -2160,6 +2180,24 @@ namespace ICSharpCode.Decompiler
 			}
 		}
 
+		bool firstClassSpanTypes = true;
+
+		/// <summary>
+		/// Gets/Sets whether (ReadOnly)Span&lt;T&gt; should be treated like built-in types.
+		/// </summary>
+		[Category("C# 14.0 / VS 202x.yy")]
+		[Description("DecompilerSettings.FirstClassSpanTypes")]
+		public bool FirstClassSpanTypes {
+			get { return firstClassSpanTypes; }
+			set {
+				if (firstClassSpanTypes != value)
+				{
+					firstClassSpanTypes = value;
+					OnPropertyChanged();
+				}
+			}
+		}
+
 		bool separateLocalVariableDeclarations = false;
 
 		/// <summary>
@@ -2278,7 +2316,7 @@ namespace ICSharpCode.Decompiler
 
 		/// <summary>
 		/// If set to false (the default), the decompiler will move field initializers at the start of constructors
-		/// to their respective field declrations (TransformFieldAndConstructorInitializers) only when the declaring
+		/// to their respective field declarations (TransformFieldAndConstructorInitializers) only when the declaring
 		/// type has BeforeFieldInit or the member IsConst.
 		/// If set true, the decompiler will always move them regardless of the flags.
 		/// </summary>

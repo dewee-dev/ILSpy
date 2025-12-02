@@ -1300,54 +1300,17 @@ namespace ICSharpCode.Decompiler.CSharp
 					// e.g. DelegateDeclaration
 					return entityDecl;
 				}
-				bool isRecordLike = typeDef.Kind switch {
-					TypeKind.Class => (settings.RecordClasses && typeDef.IsRecord) || settings.UsePrimaryConstructorSyntaxForNonRecordTypes,
-					TypeKind.Struct => (settings.RecordStructs && typeDef.IsRecord) || settings.UsePrimaryConstructorSyntaxForNonRecordTypes,
+				bool isRecord = typeDef.Kind switch {
+					TypeKind.Class => settings.RecordClasses && typeDef.IsRecord,
+					TypeKind.Struct => settings.RecordStructs && typeDef.IsRecord,
 					_ => false,
 				};
-				RecordDecompiler recordDecompiler = isRecordLike ? new RecordDecompiler(typeSystem, typeDef, settings, CancellationToken) : null;
+				RecordDecompiler recordDecompiler = isRecord ? new RecordDecompiler(typeSystem, typeDef, settings, CancellationToken) : null;
 				if (recordDecompiler != null)
 					decompileRun.RecordDecompilers.Add(typeDef, recordDecompiler);
 
-				if (recordDecompiler?.PrimaryConstructor != null)
-				{
-					foreach (var p in recordDecompiler.PrimaryConstructor.Parameters)
-					{
-						ParameterDeclaration pd = typeSystemAstBuilder.ConvertParameter(p);
-						(IProperty prop, IField field) = recordDecompiler.GetPropertyInfoByPrimaryConstructorParameter(p);
-
-						if (prop != null)
-						{
-							var attributes = prop?.GetAttributes().Select(attr => typeSystemAstBuilder.ConvertAttribute(attr)).ToArray();
-							if (attributes?.Length > 0)
-							{
-								var section = new AttributeSection {
-									AttributeTarget = "property"
-								};
-								section.Attributes.AddRange(attributes);
-								pd.Attributes.Add(section);
-							}
-						}
-						if (field != null && (recordDecompiler.FieldIsGenerated(field) || typeDef.IsRecord))
-						{
-							var attributes = field.GetAttributes()
-								.Where(a => !PatternStatementTransform.attributeTypesToRemoveFromAutoProperties.Contains(a.AttributeType.FullName))
-								.Select(attr => typeSystemAstBuilder.ConvertAttribute(attr)).ToArray();
-							if (attributes.Length > 0)
-							{
-								var section = new AttributeSection {
-									AttributeTarget = "field"
-								};
-								section.Attributes.AddRange(attributes);
-								pd.Attributes.Add(section);
-							}
-						}
-						typeDecl.PrimaryConstructorParameters.Add(pd);
-					}
-				}
-
 				// With C# 9 records, the relative order of fields and properties matters:
-				IEnumerable<IMember> fieldsAndProperties = isRecordLike && typeDef.IsRecord
+				IEnumerable<IMember> fieldsAndProperties = isRecord
 					? recordDecompiler.FieldsAndProperties
 					: typeDef.Fields.Concat<IMember>(typeDef.Properties);
 
@@ -1367,13 +1330,16 @@ namespace ICSharpCode.Decompiler.CSharp
 					foreach (var group in typeDef.ExtensionInfo?.GetGroups() ?? [])
 					{
 						var ext = new ExtensionDeclaration();
-						ext.TypeParameters.AddRange(group.Key.DeclaringTypeDefinition.TypeParameters.Select(tp => typeSystemAstBuilder.ConvertTypeParameter(tp)));
-						ext.ReceiverParameters.Add(typeSystemAstBuilder.ConvertParameter(group.Key.Parameters.Single()));
-						ext.Constraints.AddRange(group.Key.DeclaringTypeDefinition.TypeParameters.Select(c => typeSystemAstBuilder.ConvertTypeParameterConstraint(c)));
+						ITypeParameter[] typeParameters = group.Key.TypeParameters;
+						var subst = new TypeParameterSubstitution(typeParameters, null);
+						ext.TypeParameters.AddRange(typeParameters.Select(tp => typeSystemAstBuilder.ConvertTypeParameter(tp)));
+						var marker = group.Key.Marker.Specialize(subst);
+						ext.ReceiverParameters.Add(typeSystemAstBuilder.ConvertParameter(marker.Parameters.Single()));
+						ext.Constraints.AddRange(typeParameters.Select(c => typeSystemAstBuilder.ConvertTypeParameterConstraint(c)));
 
 						foreach (var member in group)
 						{
-							IMember extMember = member.ExtensionMember;
+							IMember extMember = member.ExtensionMember.Specialize(subst);
 							if (member.ExtensionMember.IsAccessor)
 							{
 								extMember = member.ExtensionMember.AccessorOwner;
@@ -1508,9 +1474,15 @@ namespace ICSharpCode.Decompiler.CSharp
 					return;
 				}
 
-				if (settings.ExtensionMembers && extensionInfo != null && entity is IMethod m && extensionInfo.InfoOfImplementationMember(m).HasValue)
+				if (settings.ExtensionMembers && extensionInfo != null)
 				{
-					return;
+					switch (entity)
+					{
+						case ITypeDefinition td when extensionInfo.IsExtensionGroupingType(td):
+							return;
+						case IMethod m when extensionInfo.InfoOfImplementationMember(m).HasValue:
+							return;
+					}
 				}
 
 				EntityDeclaration entityDecl;
@@ -1521,7 +1493,7 @@ namespace ICSharpCode.Decompiler.CSharp
 						{
 							return;
 						}
-						if (recordDecompiler?.FieldIsGenerated(field) == true)
+						if (TransformFieldAndConstructorInitializers.IsGeneratedPrimaryConstructorBackingField(field))
 						{
 							return;
 						}
@@ -1584,9 +1556,21 @@ namespace ICSharpCode.Decompiler.CSharp
 			switch (extMember)
 			{
 				case IProperty p:
-					return DoDecompile(p, decompileRun, decompilationContext.WithCurrentMember(p), info);
+					var prop = DoDecompile(p, decompileRun, decompilationContext.WithCurrentMember(p), info);
+					RemoveAttribute(prop, KnownAttribute.ExtensionMarker);
+					if (p.Getter != null)
+					{
+						RemoveAttribute(prop.GetChildByRole(PropertyDeclaration.GetterRole), KnownAttribute.ExtensionMarker);
+					}
+					if (p.Setter != null)
+					{
+						RemoveAttribute(prop.GetChildByRole(PropertyDeclaration.SetterRole), KnownAttribute.ExtensionMarker);
+					}
+					return prop;
 				case IMethod m:
-					return DoDecompile(m, decompileRun, decompilationContext.WithCurrentMember(m), info);
+					var meth = DoDecompile(m, decompileRun, decompilationContext.WithCurrentMember(m), info);
+					RemoveAttribute(meth, KnownAttribute.ExtensionMarker);
+					return meth;
 			}
 
 			throw new NotSupportedException($"Extension member {extMember} is not supported for decompilation.");
@@ -1762,7 +1746,7 @@ namespace ICSharpCode.Decompiler.CSharp
 				{
 					if (!method.IsStatic)
 						parameterOffset = 1; // implementation method has an additional receiver parameter
-					method = extensionInfo.InfoOfExtensionMember(method).Value.ImplementationMethod;
+					method = extensionInfo.InfoOfExtensionMember((IMethod)method.MemberDefinition).Value.ImplementationMethod;
 				}
 
 				var methodDef = metadata.GetMethodDefinition((MethodDefinitionHandle)method.MetadataToken);

@@ -35,6 +35,7 @@ using ICSharpCode.Decompiler.CSharp;
 using ICSharpCode.Decompiler.CSharp.OutputVisitor;
 using ICSharpCode.Decompiler.CSharp.Transforms;
 using ICSharpCode.Decompiler.Disassembler;
+using ICSharpCode.Decompiler.Documentation;
 using ICSharpCode.Decompiler.Metadata;
 using ICSharpCode.Decompiler.TypeSystem;
 using ICSharpCode.ILSpyX.PdbProvider;
@@ -70,6 +71,7 @@ namespace ICSharpCode.Decompiler.Tests.Helpers
 		NullableEnable = 0x8000,
 		ReferenceUnsafe = 0x10000,
 		CheckForOverflowUnderflow = 0x20000,
+		ProcessXmlDoc = 0x40000,
 		UseMcsMask = UseMcs2_6_4 | UseMcs5_23,
 		UseRoslynMask = UseRoslyn1_3_2 | UseRoslyn2_10_0 | UseRoslyn3_11_0 | UseRoslynLatest
 	}
@@ -133,7 +135,7 @@ namespace ICSharpCode.Decompiler.Tests.Helpers
 
 			await vswhereToolset.Fetch().ConfigureAwait(false);
 			await RefAssembliesToolset.Fetch("5.0.0", sourcePath: "ref/net5.0").ConfigureAwait(false);
-			await RefAssembliesToolset.Fetch("10.0.0-preview.4.25258.110", sourcePath: "ref/net10.0").ConfigureAwait(false);
+			await RefAssembliesToolset.Fetch("10.0.0-rc.2.25502.107", sourcePath: "ref/net10.0").ConfigureAwait(false);
 
 
 #if DEBUG
@@ -560,6 +562,8 @@ namespace System.Runtime.CompilerServices
 					$"-langversion:{languageVersion} " +
 					$"-unsafe -o{(flags.HasFlag(CompilerOptions.Optimize) ? "+ " : "- ")}";
 
+				HashSet<string> noWarn = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
 				// note: the /shared switch is undocumented. It allows us to use the VBCSCompiler.exe compiler
 				// server to speed up testing
 				if (roslynVersion != "legacy")
@@ -601,6 +605,11 @@ namespace System.Runtime.CompilerServices
 					otherOptions += "-platform:anycpu ";
 				}
 
+				if (flags.HasFlag(CompilerOptions.ProcessXmlDoc))
+				{
+					otherOptions += $"-doc:\"{Path.ChangeExtension(results.PathToAssembly, ".xml")}\" ";
+				}
+
 				if (flags.HasFlag(CompilerOptions.CheckForOverflowUnderflow))
 				{
 					otherOptions += "-checked+ ";
@@ -613,6 +622,12 @@ namespace System.Runtime.CompilerServices
 				if (preprocessorSymbols.Count > 0)
 				{
 					otherOptions += " \"-d:" + string.Join(";", preprocessorSymbols) + "\" ";
+					noWarn.Add("CS1591");
+				}
+
+				if (noWarn.Count > 0)
+				{
+					otherOptions += " -nowarn:" + string.Join(",", noWarn);
 				}
 
 				var command = Cli.Wrap(cscPath)
@@ -706,7 +721,7 @@ namespace System.Runtime.CompilerServices
 					CompilerOptions.UseRoslyn1_3_2 => CSharp.LanguageVersion.CSharp6,
 					CompilerOptions.UseRoslyn2_10_0 => CSharp.LanguageVersion.CSharp7_3,
 					CompilerOptions.UseRoslyn3_11_0 => CSharp.LanguageVersion.CSharp9_0,
-					_ => cscOptions.HasFlag(CompilerOptions.Preview) ? CSharp.LanguageVersion.Latest : CSharp.LanguageVersion.CSharp13_0,
+					_ => cscOptions.HasFlag(CompilerOptions.Preview) ? CSharp.LanguageVersion.Latest : CSharp.LanguageVersion.CSharp14_0,
 				};
 				DecompilerSettings settings = new(langVersion) {
 					// Never use file-scoped namespaces
@@ -833,6 +848,9 @@ namespace System.Runtime.CompilerServices
 				var pdbFileName = Path.ChangeExtension(assemblyFileName, ".pdb");
 				if (File.Exists(pdbFileName))
 					decompiler.DebugInfoProvider = DebugInfoUtils.FromFile(module, pdbFileName);
+				var xmlDocFileName = Path.ChangeExtension(assemblyFileName, ".xml");
+				if (File.Exists(xmlDocFileName))
+					decompiler.DocumentationProvider = new XmlDocumentationProvider(xmlDocFileName);
 				var syntaxTree = decompiler.DecompileWholeModuleAsSingleFile(sortTypes: true);
 
 				StringWriter output = new StringWriter();

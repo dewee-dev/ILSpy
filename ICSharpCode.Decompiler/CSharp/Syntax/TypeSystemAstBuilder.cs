@@ -368,7 +368,7 @@ namespace ICSharpCode.Decompiler.CSharp.Syntax
 				foreach (var customCallConv in fpt.CustomCallingConventions)
 				{
 					AstType callConvSyntax;
-					if (customCallConv.Name.StartsWith("CallConv", StringComparison.Ordinal) && customCallConv.Name.Length > 8)
+					if (customCallConv.Namespace == "System.Runtime.CompilerServices" && customCallConv.Name.StartsWith("CallConv", StringComparison.Ordinal) && customCallConv.Name.Length > 8)
 					{
 						callConvSyntax = new PrimitiveType(customCallConv.Name.Substring(8));
 						if (AddResolveResultAnnotations)
@@ -546,7 +546,13 @@ namespace ICSharpCode.Decompiler.CSharp.Syntax
 			{
 				// Handle nested types
 				result.Target = ConvertTypeHelper(genericType.DeclaringType, typeArguments);
-				AddTypeAnnotation(result.Target, genericType.DeclaringType);
+				// Use correct number of type arguments on the declaring type
+				var declaringType = genericType.DeclaringType;
+				if (outerTypeParameterCount > 0)
+				{
+					declaringType = new ParameterizedType(genericType.DeclaringType, typeArguments.Take(outerTypeParameterCount));
+				}
+				AddTypeAnnotation(result.Target, declaringType);
 			}
 			else
 			{

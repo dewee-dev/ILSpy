@@ -137,7 +137,6 @@ namespace ICSharpCode.Decompiler.Tests.Helpers
 			await RefAssembliesToolset.Fetch("5.0.0", sourcePath: "ref/net5.0").ConfigureAwait(false);
 			await RefAssembliesToolset.Fetch("10.0.0-rc.2.25502.107", sourcePath: "ref/net10.0").ConfigureAwait(false);
 
-
 #if DEBUG
 			await BuildTestRunner("win-x86", "Debug").ConfigureAwait(false);
 			await BuildTestRunner("win-x64", "Debug").ConfigureAwait(false);
@@ -184,7 +183,6 @@ namespace ICSharpCode.Decompiler.Tests.Helpers
 				outputFile += ".exe";
 				otherOptions += "/exe ";
 			}
-
 
 			if (options.HasFlag(AssemblerOptions.UseDebug))
 			{
@@ -608,6 +606,7 @@ namespace System.Runtime.CompilerServices
 				if (flags.HasFlag(CompilerOptions.ProcessXmlDoc))
 				{
 					otherOptions += $"-doc:\"{Path.ChangeExtension(results.PathToAssembly, ".xml")}\" ";
+					noWarn.Add("CS1591"); // Missing XML comment for publicly visible type or member 'Type_or_Member'
 				}
 
 				if (flags.HasFlag(CompilerOptions.CheckForOverflowUnderflow))
@@ -622,7 +621,6 @@ namespace System.Runtime.CompilerServices
 				if (preprocessorSymbols.Count > 0)
 				{
 					otherOptions += " \"-d:" + string.Join(";", preprocessorSymbols) + "\" ";
-					noWarn.Add("CS1591");
 				}
 
 				if (noWarn.Count > 0)

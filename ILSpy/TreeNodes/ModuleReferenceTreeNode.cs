@@ -20,6 +20,7 @@ using System;
 using System.Reflection.Metadata;
 
 using ICSharpCode.Decompiler;
+using ICSharpCode.Decompiler.IL;
 using ICSharpCode.Decompiler.Metadata;
 using ICSharpCode.ILSpyX.TreeView.PlatformAbstractions;
 
@@ -49,7 +50,7 @@ namespace ICSharpCode.ILSpy.TreeNodes
 			this.module = module ?? throw new ArgumentNullException(nameof(module));
 			this.metadata = module.Metadata;
 			this.reference = module.Metadata.GetModuleReference(r);
-			this.moduleName = Language.EscapeName(metadata.GetString(reference.Name));
+			this.moduleName = ILAmbience.EscapeName(metadata.GetString(reference.Name));
 
 			foreach (var h in metadata.AssemblyFiles)
 			{
@@ -67,6 +68,8 @@ namespace ICSharpCode.ILSpy.TreeNodes
 		public override object Text {
 			get { return moduleName + GetSuffixString(handle); }
 		}
+
+		public override object NavigationText => $"{Text} ({Properties.Resources.References})";
 
 		public override object Icon => Images.Library;
 

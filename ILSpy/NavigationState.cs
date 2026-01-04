@@ -19,6 +19,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 
 using ICSharpCode.ILSpy.TextView;
 using ICSharpCode.ILSpy.ViewModels;
@@ -48,7 +49,6 @@ namespace ICSharpCode.ILSpy
 			this.treeNodes = new HashSet<SharpTreeNode>(treeNodes);
 		}
 
-
 		public bool Equals(NavigationState other)
 		{
 			if (!this.treeNodes.SetEquals(other.treeNodes))
@@ -61,6 +61,21 @@ namespace ICSharpCode.ILSpy
 				return false;
 
 			return this.ViewState.Equals(other.ViewState);
+		}
+
+		public object NavigationText {
+			get {
+				if (this.treeNodes.Count == 1)
+					return this.treeNodes.First();
+
+				if (this.treeNodes.Count > 0)
+					return string.Join(", ", treeNodes.Select(tn => tn.NavigationText));
+
+				if (this.ViewState?.ViewedUri is Uri uri)
+					return uri;
+
+				return ToString();
+			}
 		}
 	}
 }

@@ -45,7 +45,7 @@ namespace ICSharpCode.Decompiler.Tests.TestCases.Pretty
 
 			public bool Func()
 			{
-				return value == StringComparison.Ordinal;
+				return _value == StringComparison.Ordinal;
 			}
 		}
 

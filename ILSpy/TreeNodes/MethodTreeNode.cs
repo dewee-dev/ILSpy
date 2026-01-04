@@ -24,6 +24,7 @@ using ICSharpCode.Decompiler;
 
 namespace ICSharpCode.ILSpy.TreeNodes
 {
+	using ICSharpCode.Decompiler.Output;
 	using ICSharpCode.Decompiler.TypeSystem;
 	using ICSharpCode.ILSpyX;
 
@@ -41,6 +42,8 @@ namespace ICSharpCode.ILSpy.TreeNodes
 
 		public override object Text => GetText(GetMethodDefinition(), Language) + GetSuffixString(MethodDefinition);
 
+		public override object NavigationText => GetText(GetMethodDefinition(), Language, includeDeclaringTypeName: true);
+
 		private IMethod GetMethodDefinition()
 		{
 			return ((MetadataModule)MethodDefinition.ParentModule?.MetadataFile
@@ -48,9 +51,9 @@ namespace ICSharpCode.ILSpy.TreeNodes
 				?.MainModule)?.GetDefinition((MethodDefinitionHandle)MethodDefinition.MetadataToken) ?? MethodDefinition;
 		}
 
-		public static object GetText(IMethod method, Language language)
+		public static object GetText(IMethod method, Language language, bool includeDeclaringTypeName = false)
 		{
-			return language.MethodToString(method, false, false, false);
+			return language.EntityToString(method, includeDeclaringTypeName ? ConversionFlags.ShowDeclaringType : ConversionFlags.None);
 		}
 
 		public override object Icon => GetIcon(GetMethodDefinition());
@@ -106,7 +109,7 @@ namespace ICSharpCode.ILSpy.TreeNodes
 
 		public override string ToString()
 		{
-			return LanguageService.ILLanguage.MethodToString(MethodDefinition, false, false, false);
+			return "Method " + LanguageService.ILLanguage.EntityToString(MethodDefinition, ConversionFlags.None);
 		}
 	}
 }

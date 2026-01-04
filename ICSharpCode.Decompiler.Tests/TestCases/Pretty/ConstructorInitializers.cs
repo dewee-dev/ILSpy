@@ -16,6 +16,8 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
+#pragma warning disable CS9113
+
 using System;
 using System.Collections.Generic;
 
@@ -156,7 +158,6 @@ namespace ICSharpCode.Decompiler.Tests.TestCases.Pretty
 			public unsafe int SizeOf = sizeof(SimpleStruct);
 		}
 
-
 #if CS120
 		public class ClassWithPrimaryCtorUsingGlobalParameter(int a)
 		{
@@ -200,8 +201,6 @@ namespace ICSharpCode.Decompiler.Tests.TestCases.Pretty
 			}
 		}
 
-
-
 		public class ClassWithPrimaryCtorUsingGlobalParameterInExpressionAssignedToProperty(int a)
 		{
 			public int A { get; set; } = (int)Math.Abs(Math.PI * (double)a);
@@ -233,7 +232,6 @@ namespace ICSharpCode.Decompiler.Tests.TestCases.Pretty
 			}
 		}
 
-
 #if CS100
 		public class PrimaryCtorClassThisChain(Guid id)
 		{
@@ -260,6 +258,32 @@ namespace ICSharpCode.Decompiler.Tests.TestCases.Pretty
 #else
 		public class UnusedPrimaryCtorParameter(int unused)
 		{
+		}
+#endif
+#if OPT && EXPECTED_OUTPUT
+		public class C8(object obj)
+		{
+			public int Test()
+			{
+				object obj2 = obj;
+				if (obj2 is int)
+				{
+					return (int)obj2;
+				}
+				return 0;
+			}
+		}
+#else
+		public class C8(object obj)
+		{
+			public int Test()
+			{
+				if (obj is int result)
+				{
+					return result;
+				}
+				return 0;
+			}
 		}
 #endif
 #endif

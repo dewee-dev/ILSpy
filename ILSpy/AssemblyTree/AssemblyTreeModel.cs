@@ -72,6 +72,8 @@ namespace ICSharpCode.ILSpy.AssemblyTree
 		private readonly LanguageService languageService;
 		private readonly IExportProvider exportProvider;
 
+		private static Dispatcher UIThreadDispatcher => Application.Current.Dispatcher;
+
 		public AssemblyTreeModel(SettingsService settingsService, LanguageService languageService, IExportProvider exportProvider)
 		{
 			this.settingsService = settingsService;
@@ -198,7 +200,7 @@ namespace ICSharpCode.ILSpy.AssemblyTree
 		{
 			var cmdArgs = CommandLineArguments.Create(args);
 
-			await Dispatcher.InvokeAsync(async () => {
+			await UIThreadDispatcher.InvokeAsync(async () => {
 
 				if (!HandleCommandLineArguments(cmdArgs))
 					return;
@@ -256,7 +258,7 @@ namespace ICSharpCode.ILSpy.AssemblyTree
 
 					// Make sure we wait for assemblies being loaded...
 					// BeginInvoke in LoadedAssembly.LookupReferencedAssemblyInternal
-					await Dispatcher.InvokeAsync(delegate { }, DispatcherPriority.Normal);
+					await UIThreadDispatcher.InvokeAsync(delegate { }, DispatcherPriority.Normal);
 
 					if (mr is { ParentModule.MetadataFile: not null })
 					{
@@ -401,7 +403,7 @@ namespace ICSharpCode.ILSpy.AssemblyTree
 				AssemblyList.Open(sessionSettings.ActiveAutoLoadedAssembly, true);
 			}
 
-			Dispatcher.BeginInvoke(DispatcherPriority.Loaded, OpenAssemblies);
+			UIThreadDispatcher.BeginInvoke(DispatcherPriority.Loaded, OpenAssemblies);
 		}
 
 		private async Task OpenAssemblies()
@@ -536,14 +538,14 @@ namespace ICSharpCode.ILSpy.AssemblyTree
 
 			if (SelectedItem == node)
 			{
-				Dispatcher.BeginInvoke(RefreshDecompiledView);
+				UIThreadDispatcher.BeginInvoke(RefreshDecompiledView);
 			}
 			else
 			{
 				activeView?.ScrollIntoView(node);
 				SelectedItem = node;
 
-				Dispatcher.BeginInvoke(DispatcherPriority.Background, () => {
+				UIThreadDispatcher.BeginInvoke(DispatcherPriority.Background, () => {
 					activeView?.ScrollIntoView(node);
 				});
 			}
@@ -795,7 +797,7 @@ namespace ICSharpCode.ILSpy.AssemblyTree
 			{
 				ContextMenuProvider.ContextMenuClosed -= ContextMenuClosed;
 
-				Dispatcher.BeginInvoke(DispatcherPriority.Background, () => {
+				UIThreadDispatcher.BeginInvoke(DispatcherPriority.Background, () => {
 					if (Mouse.RightButton != MouseButtonState.Pressed)
 					{
 						RefreshDecompiledView();
@@ -853,15 +855,24 @@ namespace ICSharpCode.ILSpy.AssemblyTree
 
 		#endregion
 
-		public void NavigateHistory(bool forward)
+		public void NavigateHistory(bool forward, NavigationState? toState = null)
 		{
 			try
 			{
 				TabPageModel tabPage = DockWorkspace.ActiveTabPage;
-				var state = tabPage.GetState();
-				if (state != null)
-					history.UpdateCurrent(new NavigationState(tabPage, state));
-				var newState = forward ? history.GoForward() : history.GoBack();
+				var currentState = tabPage.GetState();
+				if (currentState != null)
+					history.UpdateCurrent(new NavigationState(tabPage, currentState));
+
+				NavigationState newState;
+				do
+				{
+					newState = forward ? history.GoForward() : history.GoBack();
+				} while (newState != null && toState != null && toState != newState);
+
+				if (newState == null)
+					return;
+
 				navigatingToState = newState;
 
 				TabPageModel activeTabPage = newState.TabPage;
@@ -883,6 +894,8 @@ namespace ICSharpCode.ILSpy.AssemblyTree
 				navigatingToState = null;
 			}
 		}
+
+		public NavigationState[] GetNavigateHistory(bool forward) => forward ? history.ForwardList : history.BackList;
 
 		public bool CanNavigateBack => history.CanNavigateBack;
 

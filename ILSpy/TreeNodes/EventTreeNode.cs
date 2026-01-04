@@ -24,6 +24,7 @@ using ICSharpCode.Decompiler;
 
 namespace ICSharpCode.ILSpy.TreeNodes
 {
+	using ICSharpCode.Decompiler.Output;
 	using ICSharpCode.Decompiler.TypeSystem;
 	using ICSharpCode.ILSpyX;
 
@@ -49,6 +50,8 @@ namespace ICSharpCode.ILSpy.TreeNodes
 
 		public override object Text => GetText(GetEventDefinition(), this.Language) + GetSuffixString(EventDefinition);
 
+		public override object NavigationText => GetText(GetEventDefinition(), Language, includeDeclaringTypeName: true);
+
 		private IEvent GetEventDefinition()
 		{
 			return ((MetadataModule)EventDefinition.ParentModule?.MetadataFile
@@ -56,9 +59,9 @@ namespace ICSharpCode.ILSpy.TreeNodes
 				?.MainModule)?.GetDefinition((EventDefinitionHandle)EventDefinition.MetadataToken) ?? EventDefinition;
 		}
 
-		public static object GetText(IEvent ev, Language language)
+		public static object GetText(IEvent ev, Language language, bool includeDeclaringTypeName = false)
 		{
-			return language.EventToString(ev, false, false, false);
+			return language.EntityToString(ev, includeDeclaringTypeName ? ConversionFlags.ShowDeclaringType : ConversionFlags.None);
 		}
 
 		public override object Icon => GetIcon(GetEventDefinition());
@@ -101,7 +104,7 @@ namespace ICSharpCode.ILSpy.TreeNodes
 
 		public override string ToString()
 		{
-			return EventDefinition.Name;
+			return "Event " + EventDefinition.Name;
 		}
 	}
 }

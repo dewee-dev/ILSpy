@@ -27,7 +27,7 @@ namespace ICSharpCode.Decompiler.Tests.TestCases.Pretty
 
 			internal StringComparison Test()
 			{
-				return comparison;
+				return _comparison;
 			}
 		}
 

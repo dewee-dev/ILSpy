@@ -24,6 +24,7 @@ using ICSharpCode.Decompiler;
 
 namespace ICSharpCode.ILSpy.TreeNodes
 {
+	using ICSharpCode.Decompiler.Output;
 	using ICSharpCode.Decompiler.TypeSystem;
 	using ICSharpCode.ILSpyX;
 
@@ -51,6 +52,8 @@ namespace ICSharpCode.ILSpy.TreeNodes
 
 		public override object Text => GetText(GetPropertyDefinition(), Language) + GetSuffixString(PropertyDefinition);
 
+		public override object NavigationText => GetText(GetPropertyDefinition(), Language, includeDeclaringTypeName: true);
+
 		private IProperty GetPropertyDefinition()
 		{
 			return ((MetadataModule)PropertyDefinition.ParentModule?.MetadataFile
@@ -58,9 +61,9 @@ namespace ICSharpCode.ILSpy.TreeNodes
 				?.MainModule)?.GetDefinition((PropertyDefinitionHandle)PropertyDefinition.MetadataToken) ?? PropertyDefinition;
 		}
 
-		public static object GetText(IProperty property, Language language)
+		public static object GetText(IProperty property, Language language, bool includeDeclaringTypeName = false)
 		{
-			return language.PropertyToString(property, false, false, false);
+			return language.EntityToString(property, includeDeclaringTypeName ? ConversionFlags.ShowDeclaringType : ConversionFlags.None);
 		}
 
 		public override object Icon => GetIcon(GetPropertyDefinition());
@@ -104,7 +107,7 @@ namespace ICSharpCode.ILSpy.TreeNodes
 
 		public override string ToString()
 		{
-			return LanguageService.ILLanguage.PropertyToString(PropertyDefinition, false, false, false);
+			return "Property " + LanguageService.ILLanguage.EntityToString(PropertyDefinition, ConversionFlags.None);
 		}
 	}
 }

@@ -14,7 +14,7 @@ jobs:
   Build:
     permissions:
       packages: write  # for dotnet nuget push
-    runs-on: windows-2022
+    runs-on: windows-2025
     strategy:
       fail-fast: false
       matrix:
@@ -51,7 +51,10 @@ jobs:
       run: dotnet tool install -g dotnet-format --version "${{env.DOTNET_FORMAT_VERSION}}" --add-source "${{env.DOTNET_FORMAT_SOURCE}}"
 
     - name: Install wix (locked version)
-      run: dotnet tool install --global wix --version 6.0.0
+      run: dotnet tool install --global wix --version 6.0.2
+      
+    - name: Install wix extesnion (locked version)
+      run: wix.exe extension add -g WixToolset.UI.wixext/6.0.2
 
     - name: Get Version
       id: version

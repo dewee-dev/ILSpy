@@ -20,16 +20,16 @@ jobs:
         dotnet-version: 11.0.x
 
     - name: Verify code formatting
-      run: dotnet format --verify-no-changes
+      run: dotnet format ILSpy.sln --verify-no-changes
 
     - name: Restore dependencies
-      run: dotnet restore
+      run: dotnet restore ILSpy.sln
 
     - name: Build
-      run: dotnet build --no-restore --configuration Release
+      run: dotnet build ILSpy.sln --no-restore --configuration Release
 
     - name: Run tests
-      run: dotnet test --no-build --configuration Release --verbosity normal
+      run: dotnet test ILSpy.sln --no-build --configuration Release --verbosity normal
 
     - name: Publish artifacts
       run: dotnet publish ./ILSpy/ILSpy.csproj --configuration Release --output ./artifacts

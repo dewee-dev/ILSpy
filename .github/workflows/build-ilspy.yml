@@ -12,12 +12,12 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4   # 升级到 v4
+      uses: actions/checkout@v4   # 最新版
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4   # 升级到 v4
+    - name: Setup .NET 11
+      uses: actions/setup-dotnet@v4   # 安装 11.0.x SDK
       with:
-        dotnet-version: 6.0.x
+        dotnet-version: 11.0.x
 
     - name: Configure NuGet sources
       run: |

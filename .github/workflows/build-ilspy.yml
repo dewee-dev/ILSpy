@@ -14,10 +14,13 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Setup .NET 11
+    - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 11.0.x
+        dotnet-version: 8.0.x # 推荐先试 LTS，如需 11 改回 11.0.x
+
+    - name: Restore tools
+      run: dotnet tool restore
 
     - name: Verify code formatting
       run: dotnet format ILSpy.sln --verify-no-changes

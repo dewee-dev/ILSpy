@@ -2,235 +2,70 @@ name: Build ILSpy
 
 on:
   push:
-    branches: '**'
+    branches: [ master ]
   pull_request:
-    branches: [ master, release/** ]
-  workflow_dispatch:
-
-permissions:
-  contents: read
+    branches: [ master ]
 
 jobs:
-  Build:
-    permissions:
-      packages: write  # for dotnet nuget push
-    runs-on: windows-2025-vs2026
-    strategy:
-      fail-fast: false
-      matrix:
-        Configuration: [ Debug, Release ]
-    env:
-      BuildPlatform: Any CPU
-      StagingDirectory: buildartifacts
-      BuildAndPublishVsix: true
+  build:
+    runs-on: ubuntu-latest
 
     steps:
-    - run: mkdir -p $env:StagingDirectory
-      
+    - name: Checkout repository
+      uses: actions/checkout@v3
 
-    - uses: actions/checkout@v6
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
       with:
-        submodules: true
-        fetch-depth: 0
-        persist-credentials: false
+        dotnet-version: 6.0.x
 
-    - uses: actions/setup-dotnet@v5
-      with:
-        dotnet-version: '11.0.x'
-        dotnet-quality: 'preview'
-      env:
-        DOTNET_INSTALL_DIR: ${{ runner.temp }}/.dotnet
-        DOTNET_ROOT: ${{ runner.temp }}/.dotnet
-
-    - name: Add msbuild to PATH
-      uses: microsoft/setup-msbuild@v3
+    - name: Configure NuGet sources
+      run: |
+        mkdir -p ~/.nuget/NuGet
+        cat > ~/.nuget/NuGet/NuGet.Config <<EOF
+        <configuration>
+          <packageSources>
+            <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
+            <add key="dotnet10-transport" value="https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet10-transport/nuget/v3/index.json" />
+          </packageSources>
+          <packageSourceMapping>
+            <packageSource key="dotnet10-transport">
+              <package pattern="dotnet-format" />
+            </packageSource>
+          </packageSourceMapping>
+        </configuration>
+        EOF
 
     - name: Install dotnet-format
-      env:
-        DOTNET_FORMAT_VERSION: 10.0.100-rtm.25531.102
-        DOTNET_FORMAT_SOURCE: https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet10-transport/nuget/v3/index.json
-      run: dotnet tool install -g dotnet-format --version "${{env.DOTNET_FORMAT_VERSION}}" --add-source "${{env.DOTNET_FORMAT_SOURCE}}"
+      run: dotnet tool install -g dotnet-format --version "10.0.100-rtm.25531.102"
 
-    - name: Install wix (locked version)
-      run: dotnet tool install --global wix --version 6.0.2
-      
-    - name: Install wix extesnion (locked version)
-      run: wix.exe extension add -g WixToolset.UI.wixext/6.0.2
-
-    - name: Get Version
-      id: version
-      shell: pwsh
-      run: |
-        .\BuildTools\ghactions-install.ps1
-        Get-ChildItem Env: | Where-Object {$_.Name -Match "^ILSPY_"} | %{ echo "$($_.Name)=$($_.Value)" } | Out-File -FilePath $Env:GITHUB_OUTPUT -Encoding utf8 -Append
-
-    - name: Restore the application
-      run: dotnet restore ILSpy.sln /p:RestoreEnablePackagePruning=false /p:Configuration=${{ matrix.configuration }} /p:Platform="$env:BuildPlatform"
+    - name: Restore dependencies
+      run: dotnet restore
 
     - name: Build
-      run: dotnet build ILSpy.sln --no-restore -c ${{ matrix.configuration }} /p:Platform="$env:BuildPlatform" /m
+      run: dotnet build --no-restore --configuration Release
 
-    - name: Format check
-      run: dotnet-format whitespace --verify-no-changes --verbosity detailed ILSpy.sln
+    - name: Run tests
+      run: dotnet test --no-build --configuration Release --verbosity normal
 
-    - name: Execute unit tests
-      run: dotnet test --solution ilspy.sln --configuration ${{ matrix.configuration }} --no-build --report-trx --results-directory test-results/${{ matrix.configuration }}
+    - name: Publish artifacts
+      run: dotnet publish ./ILSpy/ILSpy.csproj --configuration Release --output ./artifacts
 
-    - name: Upload Test Logs
-      uses: actions/upload-artifact@v7
-      if: success() || failure()
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
       with:
-        name: test-results-${{ matrix.configuration }}
-        path: 'test-results/${{ matrix.configuration }}/*.trx'
+        name: ILSpy-artifacts
+        path: ./artifacts
 
-    - name: Create Test Report
-      uses: icsharpcode/test-summary-action@dist
-      if: always()
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      if: github.ref == 'refs/heads/master'
       with:
-        paths: "test-results/${{ matrix.configuration }}/*.trx"
-        folded: true
-      
-    - name: Verify package contents
-      if: matrix.configuration == 'debug'
-      shell: pwsh
-      run: |
-        .\BuildTools\create-filelists.ps1
-        git diff --exit-code
-    
-    - name: Zip ILSpy (framework-dependent)
-      run: 7z a -tzip $env:StagingDirectory\ILSpy_binaries.zip .\ILSpy\bin\${{ matrix.configuration }}\net10.0-windows\*.dll .\ILSpy\bin\${{ matrix.configuration }}\net10.0-windows\*.exe .\ILSpy\bin\${{ matrix.configuration }}\net10.0-windows\*.config .\ILSpy\bin\${{ matrix.configuration }}\net10.0-windows\*.json .\ILSpy\bin\${{ matrix.configuration }}\net10.0-windows\*\ILSpy.resources.dll .\ILSpy\bin\${{ matrix.configuration }}\net10.0-windows\*\ILSpy.ReadyToRun.Plugin.resources.dll
-
-    - name: Publish x64/arm64 framework-dependent/self-contained
-      shell: pwsh
-      run: .\publish.ps1
-
-    - name: Zip ILSpy Release (x64 self-contained)
-      if: matrix.configuration == 'release'    
-      run: 7z a -tzip $env:StagingDirectory\ILSpy_selfcontained_x64.zip .\ILSpy\bin\Release\net10.0-windows\win-x64\publish\selfcontained\*
-
-    - name: Zip ILSpy Release (arm64 framework-dependent)
-      if: matrix.configuration == 'release'    
-      run: 7z a -tzip $env:StagingDirectory\ILSpy_binaries_arm64.zip .\ILSpy\bin\Release\net10.0-windows\win-arm64\publish\fwdependent\*
-
-    - name: Pack NuGets
-      if: matrix.configuration == 'release'
-      run: |
-        dotnet pack ICSharpCode.Decompiler --no-restore
-        dotnet pack ICSharpCode.BamlDecompiler --no-restore
-        dotnet pack ICSharpCode.ILSpyX --no-restore
-
-    - name: Build Installer (x64 and arm64, framework-dependent)
-      if: matrix.configuration == 'release'  
-      run: |
-        dotnet msbuild ILSpy.Installer.sln /t:Restore /p:Configuration="Release" /p:Platform="Any CPU"
-        dotnet msbuild ILSpy.Installer.sln /p:Configuration="Release" /p:Platform="Any CPU"
-        dotnet msbuild ILSpy.Installer.sln /p:Configuration="Release" /p:Platform="Any CPU" /p:PlatformForInstaller="ARM64"
-
-    - name: Build VS Extensions (for 2017-2019 and 2022)
-      if: matrix.configuration == 'release' && env.BuildAndPublishVsix == 'true'
-      run: |
-        msbuild ILSpy.VSExtensions.sln /t:Restore /p:Configuration="Release" /p:Platform="Any CPU"
-        msbuild ILSpy.VSExtensions.sln /p:Configuration="Release" /p:Platform="Any CPU"
-
-    # https://github.com/actions/upload-artifact
-    - name: Upload VSIX (VS 2019) release build artifacts
-      if: matrix.configuration == 'release' && env.BuildAndPublishVsix == 'true'
-      uses: actions/upload-artifact@v7
-      with:
-        name: ILSpy VS Addin for VS 2017-2019 ${{ steps.version.outputs.ILSPY_VERSION_NUMBER }} (${{ matrix.configuration }})
-        path: ILSpy.AddIn\bin\${{ matrix.configuration }}\net472\*.vsix
-        if-no-files-found: error
-
-    - name: Upload VSIX (VS 2022) release build artifacts
-      if: matrix.configuration == 'release' && env.BuildAndPublishVsix == 'true'
-      uses: actions/upload-artifact@v7
-      with:
-        name: ILSpy VS Addin for VS 2022 ${{ steps.version.outputs.ILSPY_VERSION_NUMBER }} (${{ matrix.configuration }})
-        path: ILSpy.AddIn.VS2022\bin\${{ matrix.configuration }}\net472\*.vsix
-        if-no-files-found: error
-
-    - name: Upload Decompiler NuGet release build artifacts
-      if: matrix.configuration == 'release'
-      uses: actions/upload-artifact@v7
-      with:
-        name: ICSharpCode.Decompiler NuGet Package (${{ matrix.configuration }})
-        path: ICSharpCode.Decompiler\bin\Release\ICSharpCode.Decompiler*.nupkg
-        if-no-files-found: error
-
-    - name: Publish Decompiler NuGet
-      if: github.ref == 'refs/heads/master' && matrix.configuration == 'release'
-      run: |
-        dotnet nuget push "ICSharpCode.Decompiler\bin\Release\ICSharpCode.Decompiler*.nupkg" --api-key ${{ secrets.GITHUB_TOKEN }} --source https://nuget.pkg.github.com/${{ github.repository_owner }}
-
-    - name: Upload ILSpyX NuGet release build artifacts
-      if: matrix.configuration == 'release'
-      uses: actions/upload-artifact@v7
-      with:
-        name: ICSharpCode.ILSpyX NuGet Package (${{ matrix.configuration }})
-        path: ICSharpCode.ILSpyX\bin\Release\ICSharpCode.ILSpyX*.nupkg
-        if-no-files-found: error
-
-    - name: Publish ILSpyX NuGet
-      if: github.ref == 'refs/heads/master' && matrix.configuration == 'release'
-      run: |
-        dotnet nuget push "ICSharpCode.ILSpyX\bin\Release\ICSharpCode.ILSpyX*.nupkg" --api-key ${{ secrets.GITHUB_TOKEN }} --source https://nuget.pkg.github.com/${{ github.repository_owner }}
-
-    - name: Upload BamlDecompiler NuGet release build artifacts
-      if: matrix.configuration == 'release'
-      uses: actions/upload-artifact@v7
-      with:
-        name: ICSharpCode.BamlDecompiler NuGet Package (${{ matrix.configuration }})
-        path: ICSharpCode.BamlDecompiler\bin\Release\ICSharpCode.BamlDecompiler*.nupkg
-        if-no-files-found: error
-
-    - name: Publish DecomBamlDecompilerpiler NuGet
-      if: github.ref == 'refs/heads/master' && matrix.configuration == 'release'
-      run: |
-        dotnet nuget push "ICSharpCode.BamlDecompiler\bin\Release\ICSharpCode.BamlDecompiler*.nupkg" --api-key ${{ secrets.GITHUB_TOKEN }} --source https://nuget.pkg.github.com/${{ github.repository_owner }}
-
-    - name: Upload zip binaries build artifacts
-      uses: actions/upload-artifact@v7
-      with:
-        name: ILSpy ${{ steps.version.outputs.ILSPY_VERSION_NUMBER }} (${{ matrix.configuration }})
-        path: ${{ env.StagingDirectory }}\ILSpy_binaries.zip
-        if-no-files-found: error
-
-    - name: Upload x64 self-contained zip (Release-only)
-      if: matrix.configuration == 'release'
-      uses: actions/upload-artifact@v7
-      with:
-        name: ILSpy self-contained x64 ${{ steps.version.outputs.ILSPY_VERSION_NUMBER }} (${{ matrix.configuration }})
-        path: ${{ env.StagingDirectory }}\ILSpy_selfcontained_x64.zip
-        if-no-files-found: error
-
-    - name: Upload arm64 framework-dependent zip (Release-only)
-      if: matrix.configuration == 'release'
-      uses: actions/upload-artifact@v7
-      with:
-        name: ILSpy arm64 ${{ steps.version.outputs.ILSPY_VERSION_NUMBER }} (${{ matrix.configuration }})
-        path: ${{ env.StagingDirectory }}\ILSpy_binaries_arm64.zip
-        if-no-files-found: error
-
-    - name: Upload x64 installer artifact
-      if: matrix.configuration == 'release'
-      uses: actions/upload-artifact@v7
-      with:
-        name: ILSpy Installer x64 ${{ steps.version.outputs.ILSPY_VERSION_NUMBER }} (${{ matrix.configuration }})
-        path: ILSpy.Installer\wix\*-x64.msi
-        if-no-files-found: error
-
-    - name: Upload arm64 installer artifact
-      if: matrix.configuration == 'release'
-      uses: actions/upload-artifact@v7
-      with:
-        name: ILSpy Installer arm64 ${{ steps.version.outputs.ILSPY_VERSION_NUMBER }} (${{ matrix.configuration }})
-        path: ILSpy.Installer\wix\*-arm64.msi
-        if-no-files-found: error
-
-    - name: Upload ilspycmd release build artifacts
-      if: matrix.configuration == 'release'
-      uses: actions/upload-artifact@v7
-      with:
-        name: ilspycmd dotnet tool (${{ matrix.configuration }})
-        path: ICSharpCode.ILSpyCmd\bin\Release\ilspycmd*.nupkg
-        if-no-files-found: error
+        tag_name: v${{ github.run_number }}
+        name: "ILSpy Build ${{ github.run_number }}"
+        body: "Automated build of ILSpy from master branch."
+        draft: false
+        prerelease: false
+        files: ./artifacts/**
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

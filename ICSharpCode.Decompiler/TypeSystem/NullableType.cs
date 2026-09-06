@@ -71,7 +71,6 @@ namespace ICSharpCode.Decompiler.TypeSystem
 			if (nullableTypeDef != null)
 				return new ParameterizedType(nullableTypeDef, new[] { elementType });
 			else
-
 				return nullableType;
 		}
 	}

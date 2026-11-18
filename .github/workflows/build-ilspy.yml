@@ -3,6 +3,8 @@ name: Build ILSpy
 on:
   push:
     branches: '**'
+    tags:
+      - 'v*'
   pull_request:
     branches: [ master, release/** ]
 
@@ -647,3 +649,33 @@ jobs:
         name: decompiler-aot-gate-output
         path: aotgate/*.cs
         if-no-files-found: ignore
+
+  Release:
+    name: Publish GitHub Release
+    needs: [Build, Desktop, IlspyCmdRidPackages, DecompilerAotGate]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - uses: actions/checkout@v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: Download build artifacts
+      uses: actions/download-artifact@v7
+      with:
+        path: release-artifacts
+
+    - name: Stage release assets
+      run: bash BuildTools/stage-release-assets.sh release-artifacts release-assets
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ github.ref_name }}
+        name: ILSpy ${{ github.ref_name }}
+        generate_release_notes: true
+        fail_on_unmatched_files: true
+        files: release-assets/*

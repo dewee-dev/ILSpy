@@ -328,6 +328,12 @@ namespace ICSharpCode.Decompiler.Tests
 		}
 
 		[Test]
+		public async Task NegativeParamsArrayLength()
+		{
+			await Run();
+		}
+
+		[Test]
 		public async Task SpanConversionOperatorMismatch()
 		{
 			await Run(settings: new DecompilerSettings { FileScopedNamespaces = false, FirstClassSpanTypes = true });
@@ -414,6 +420,12 @@ namespace ICSharpCode.Decompiler.Tests
 		}
 
 		[Test]
+		public async Task CyclicBaseClass()
+		{
+			await Run();
+		}
+
+		[Test]
 		public async Task SealedRecordProtectedCopyCtor()
 		{
 			await Run();
@@ -449,6 +461,12 @@ namespace ICSharpCode.Decompiler.Tests
 
 		[Test]
 		public async Task Issue3729()
+		{
+			await Run();
+		}
+
+		[Test]
+		public async Task Issue4295()
 		{
 			await Run();
 		}

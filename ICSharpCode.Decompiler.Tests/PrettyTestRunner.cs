@@ -351,6 +351,12 @@ namespace ICSharpCode.Decompiler.Tests
 		}
 
 		[Test]
+		public async Task AsyncMultiCatchTryCatch()
+		{
+			await RunForLibrary(cscOptions: CompilerOptions.UseRoslynLatest);
+		}
+
+		[Test]
 		public async Task Lock([ValueSource(nameof(defaultOptionsWithMcs))] CompilerOptions cscOptions)
 		{
 			await RunForLibrary(cscOptions: cscOptions);
@@ -401,6 +407,12 @@ namespace ICSharpCode.Decompiler.Tests
 
 		[Test]
 		public async Task Generics([ValueSource(nameof(defaultOptions))] CompilerOptions cscOptions)
+		{
+			await RunForLibrary(cscOptions: cscOptions);
+		}
+
+		[Test]
+		public async Task WideGenericType([ValueSource(nameof(roslyn4OrNewerOptions))] CompilerOptions cscOptions)
 		{
 			await RunForLibrary(cscOptions: cscOptions);
 		}
@@ -498,6 +510,12 @@ namespace ICSharpCode.Decompiler.Tests
 		public async Task OverloadResolution([ValueSource(nameof(roslyn2OrNewerOptions))] CompilerOptions cscOptions)
 		{
 			await RunForLibrary(cscOptions: cscOptions);
+		}
+
+		[Test]
+		public async Task ParamsArrayExpansion()
+		{
+			await RunForLibrary(cscOptions: CompilerOptions.UseRoslynLatest);
 		}
 
 		[Test]
@@ -1072,6 +1090,12 @@ namespace ICSharpCode.Decompiler.Tests
 
 		[Test]
 		public async Task Issue3751([ValueSource(nameof(defaultOptions))] CompilerOptions cscOptions)
+		{
+			await RunForLibrary(cscOptions: cscOptions);
+		}
+
+		[Test]
+		public async Task Issue4349([ValueSource(nameof(defaultOptions))] CompilerOptions cscOptions)
 		{
 			await RunForLibrary(cscOptions: cscOptions);
 		}

@@ -34,6 +34,33 @@ namespace ICSharpCode.Decompiler.IL.Transforms
 	/// </summary>
 	public class TransformArrayInitializers : IStatementTransform
 	{
+		/// <summary>
+		/// Largest array for which a sparse initializer is still expanded when the transform is
+		/// mandatory (constructor initializers and catch-when filters).
+		/// </summary>
+		const int MaxForcedInitializerLength = 0x10000;
+
+		/// <summary>
+		/// Determines whether expanding the known elements to the full array length is too sparse.
+		/// </summary>
+		/// <param name="elementCount">The number of explicitly known elements.</param>
+		/// <param name="length">The total array length.</param>
+		/// <param name="mustTransform">Whether the caller requires an initializer transform.</param>
+		/// <remarks>
+		/// Forced transforms remain bounded by <see cref="MaxForcedInitializerLength"/>. Call sites
+		/// that only consider already-inlined expressions should pass <c>false</c>.
+		/// </remarks>
+		internal static bool IsTooSparse(int elementCount, int length, bool mustTransform)
+		{
+			// An initializer is dense when it describes at least one element per three slots,
+			// allowing a small fixed amount of padding.
+			if (elementCount >= length / 3 - 5)
+				return false;
+			// These contexts require the stores to be part of the initializer, but expansion
+			// must remain bounded by the array length.
+			return !mustTransform || length > MaxForcedInitializerLength;
+		}
+
 		StatementTransformContext context;
 
 		void IStatementTransform.Run(Block block, int pos, StatementTransformContext context)
@@ -645,6 +672,14 @@ namespace ICSharpCode.Decompiler.IL.Transforms
 			values = null;
 			var valuesList = new List<(ILInstruction[] Indices, ILInstruction Value)>(Math.Min(block.Instructions.Count, length));
 
+			if (pos >= block.Instructions.Count)
+				return false;
+			bool mustTransform = ILInlining.IsCatchWhenBlock(block) || ILInlining.IsInConstructorInitializer(function, block.Instructions[pos]);
+			// Each remaining instruction can store at most one element. If this upper bound is
+			// already too sparse, abort before padding skipped array slots.
+			if (IsTooSparse(block.Instructions.Count - pos, length, mustTransform))
+				return false;
+
 			int[] nextMinimumIndex = new int[arrayLength.Length];
 
 			ILInstruction[] CalculateNextIndices(InstructionCollection<ILInstruction> indices, out bool exactMatch)
@@ -768,17 +803,10 @@ namespace ICSharpCode.Decompiler.IL.Transforms
 			if (elementCount == 0)
 				return false;
 
-			bool mustTransform = ILInlining.IsCatchWhenBlock(block) || ILInlining.IsInConstructorInitializer(function, block.Instructions[pos]);
 			// If there are not enough user-defined elements after scanning all instructions, we can abort the transform.
-			// This avoids unnecessary allocations and OOM crashes (in case of int.MaxValue).
-			if (elementCount < length / 3 - 5)
-			{
-				if (!mustTransform)
-					return false;
-				// .NET does not allow allocation of arrays >= 2 GB.
-				if (length >= int.MaxValue)
-					return false;
-			}
+			// This avoids unnecessary allocations and OOM crashes while padding the remaining slots.
+			if (IsTooSparse(elementCount, length, mustTransform))
+				return false;
 
 			for (int j = valuesList.Count; j < length; j++)
 			{

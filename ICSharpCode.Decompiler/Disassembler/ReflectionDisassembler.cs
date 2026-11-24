@@ -615,16 +615,15 @@ namespace ICSharpCode.Decompiler.Disassembler
 
 				string GetDeclaringModule(TypeReferenceHandle handle)
 				{
-					var tr = reader.GetTypeReference(handle);
-					switch (tr.ResolutionScope.Kind)
+					var chain = handle.GetResolutionScopeChain(reader);
+					var resolutionScope = reader.GetTypeReference(chain[^1]).ResolutionScope;
+					switch (resolutionScope.Kind)
 					{
-						case HandleKind.TypeReference:
-							return GetDeclaringModule((TypeReferenceHandle)tr.ResolutionScope);
 						case HandleKind.AssemblyReference:
-							var asmRef = reader.GetAssemblyReference((AssemblyReferenceHandle)tr.ResolutionScope);
+							var asmRef = reader.GetAssemblyReference((AssemblyReferenceHandle)resolutionScope);
 							return asmRef.TryGetFullAssemblyName(reader, out var assemblyName) ? assemblyName : null;
 						case HandleKind.ModuleReference:
-							var modRef = reader.GetModuleReference((ModuleReferenceHandle)tr.ResolutionScope);
+							var modRef = reader.GetModuleReference((ModuleReferenceHandle)resolutionScope);
 							return reader.GetString(modRef.Name);
 						default:
 							return null;
@@ -703,7 +702,7 @@ namespace ICSharpCode.Decompiler.Disassembler
 								{
 									if (i + 1 == name.Length)
 										return type;
-									typeDefinitions = typeDef.GetNestedTypes();
+									typeDefinitions = typeDef.GetNestedTypes(metadata, type);
 									goto restart;
 								}
 							}
@@ -1812,7 +1811,7 @@ namespace ICSharpCode.Decompiler.Disassembler
 					output.WriteLine();
 				}
 			}
-			var nestedTypes = Process(module, typeDefinition.GetNestedTypes());
+			var nestedTypes = Process(module, typeDefinition.GetNestedTypes(module.Metadata, type));
 			if (nestedTypes.Any())
 			{
 				output.WriteLine("// Nested Types");
@@ -2318,18 +2317,10 @@ namespace ICSharpCode.Decompiler.Disassembler
 						break;
 					case HandleKind.ExportedType:
 						output.Write(".class extern ");
-						var declaringType = metadata.GetExportedType((ExportedTypeHandle)exportedType.Implementation);
-						while (true)
+						var implementationChain = exportedType.GetImplementationChain(metadata);
+						for (int i = 1; i < implementationChain.Count; i++)
 						{
-							WriteExportedType(declaringType);
-							if (declaringType.Implementation.Kind == HandleKind.ExportedType)
-							{
-								declaringType = metadata.GetExportedType((ExportedTypeHandle)declaringType.Implementation);
-							}
-							else
-							{
-								break;
-							}
+							WriteExportedType(implementationChain[i]);
 						}
 						output.WriteLine();
 						break;

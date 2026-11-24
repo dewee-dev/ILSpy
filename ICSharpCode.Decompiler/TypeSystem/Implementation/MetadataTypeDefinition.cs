@@ -59,7 +59,7 @@ namespace ICSharpCode.Decompiler.TypeSystem.Implementation
 		IEvent[] events;
 		IMethod[] methods;
 		List<IType> directBaseTypes;
-		bool defaultMemberNameInitialized;
+		volatile bool defaultMemberNameInitialized;
 		string defaultMemberName;
 
 		internal MetadataTypeDefinition(MetadataModule module, TypeDefinitionHandle handle)
@@ -181,7 +181,7 @@ namespace ICSharpCode.Decompiler.TypeSystem.Implementation
 				if (nestedTypes != null)
 					return nestedTypes;
 				var metadata = module.metadata;
-				var nestedTypeCollection = metadata.GetTypeDefinition(handle).GetNestedTypes();
+				var nestedTypeCollection = metadata.GetTypeDefinition(handle).GetNestedTypes(metadata, handle);
 				var nestedTypeList = new List<ITypeDefinition>(nestedTypeCollection.Length);
 				foreach (TypeDefinitionHandle h in nestedTypeCollection)
 				{
@@ -363,7 +363,7 @@ namespace ICSharpCode.Decompiler.TypeSystem.Implementation
 						baseType = module.ResolveType(baseTypeHandle, context, metadata.GetCustomAttributes(this.handle), Nullability.Oblivious);
 					}
 				}
-				catch (BadImageFormatException)
+				catch (Exception ex) when (ex is BadImageFormatException or ArgumentOutOfRangeException or IndexOutOfRangeException)
 				{
 					baseType = SpecialType.UnknownType;
 				}
@@ -379,8 +379,15 @@ namespace ICSharpCode.Decompiler.TypeSystem.Implementation
 				}
 				foreach (var h in interfaceImplCollection)
 				{
-					var iface = metadata.GetInterfaceImplementation(h);
-					baseTypes.Add(module.ResolveType(iface.Interface, context, iface.GetCustomAttributes(), Nullability.Oblivious));
+					try
+					{
+						var iface = metadata.GetInterfaceImplementation(h);
+						baseTypes.Add(module.ResolveType(iface.Interface, context, iface.GetCustomAttributes(), Nullability.Oblivious));
+					}
+					catch (Exception ex) when (ex is BadImageFormatException or ArgumentOutOfRangeException or IndexOutOfRangeException)
+					{
+						baseTypes.Add(SpecialType.UnknownType);
+					}
 				}
 				return LazyInit.GetOrSet(ref this.directBaseTypes, baseTypes);
 			}
@@ -495,8 +502,9 @@ namespace ICSharpCode.Decompiler.TypeSystem.Implementation
 
 		public string DefaultMemberName {
 			get {
+				bool initialized = defaultMemberNameInitialized;
 				string defaultMemberName = LazyInit.VolatileRead(ref this.defaultMemberName);
-				if (defaultMemberName != null || defaultMemberNameInitialized)
+				if (defaultMemberName != null || initialized)
 					return defaultMemberName;
 				var metadata = module.metadata;
 				var typeDefinition = metadata.GetTypeDefinition(handle);
@@ -808,7 +816,7 @@ namespace ICSharpCode.Decompiler.TypeSystem.Implementation
 		#endregion
 
 		#region IsRecord
-		byte isRecord = ThreeState.Unknown;
+		volatile byte isRecord = ThreeState.Unknown;
 
 		public bool IsRecord {
 			get {
